@@ -20,11 +20,8 @@ import KelolaAgent from './pages/admin/KelolaAgent';
 // Dokter Pages
 import DashboardDokter from './pages/dokter/DashboardDokter';
 import DataRekamMedis from './pages/dokter/DataRekamMedis';
-import RingkasanMedis from './pages/dokter/RingkasanMedis';
 import ResumeMedis from './pages/dokter/ResumeMedis';
-import PedomanKlinis from './pages/dokter/PedomanKlinis';
 import ApproveFinal from './pages/dokter/ApproveFinal';
-import InputKlinis from './pages/dokter/InputKlinis';
 
 // Perawat Pages
 import DashboardPerawat from './pages/perawat/DashboardPerawat';
@@ -73,11 +70,8 @@ export default function App() {
 
             {/* Modul Dokter */}
             <Route path="/dashboard-dokter" element={<DashboardDokter />} />
-            <Route path="/input-klinis" element={<InputKlinis />} />
             <Route path="/data-medis" element={<DataRekamMedis />} />
-            <Route path="/ringkasan" element={<RingkasanMedis />} />
             <Route path="/resume" element={<ResumeMedis />} />
-            <Route path="/pedoman" element={<PedomanKlinis />} />
             <Route path="/approve" element={<ApproveFinal />} />
 
             {/* Modul Asisten */}

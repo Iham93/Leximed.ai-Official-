@@ -16,8 +16,8 @@ use App\Models\User;
 | API Routes — LEXIMED.AI PRIVILEGED CORE PROTOCOL
 |--------------------------------------------------------------------------
 |
-| Engine rute utama terintegrasi murni databases cloud Supabase.
-| v6.5 - FIXED CHANNELS (SINKRONISASI TOTAL ENGINES LINTAS WORKSTATION)
+| Engine rute utama terintegrasi murni database cloud Supabase.
+| v6.8 - PRODUCTION FINAL WORKSTATION (SINKRONISASI LOGOUT, RAG, & CORE SANCTUM)
 |
 */
 
@@ -25,38 +25,43 @@ Route::get('/unauthorized', function () {
     return response()->json(['success' => false, 'message' => 'Sesi Berakhir.'], 401);
 })->name('login');
 
-// ── AUTENTIKASI UTAMA TOKEN GENERATOR ──
+// ── AUTENTIKASI UTAMA TOKEN GENERATOR (FIXED GATEWAY) ──
 Route::post('/token', function (Request $request) {
-    $request->validate(['username' => 'required', 'password' => 'required']);
+    $request->validate(['username' => 'required|string', 'password' => 'required|string']);
 
-    if (Auth::attempt($request->only('username', 'password'))) {
-        $user = Auth::user();
-        $user->tokens()->delete();
+    try {
+        if (Auth::attempt($request->only('username', 'password'))) {
+            $user = Auth::user();
+            $user->tokens()->delete(); // Hapus token lama demi aspek keamanan siber
 
-        DB::table('audit_logs')->insert([
-            'user_id'     => $user->id,
-            'action'      => 'LOGIN',
-            'description' => "User {$user->name} ({$user->role}) berhasil login.",
-            'created_at'  => now(),
-            'updated_at'  => now(),
-        ]);
+            DB::table('audit_logs')->insert([
+                'user_id'     => $user->id,
+                'action'      => 'LOGIN',
+                'description' => "User {$user->name} ({$user->role}) berhasil login.",
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]);
 
-        return response()->json([
-            'success'      => true,
-            'access_token' => $user->createToken('auth_token')->plainTextToken,
-            'user'         => [
-                'id'       => $user->id,
-                'name'     => $user->name,
-                'username' => $user->username,
-                'role'     => $user->role ?? 'perawat',
-            ],
-        ], 200);
+            return response()->json([
+                'success'      => true,
+                'access_token' => $user->createToken('auth_token')->plainTextToken,
+                'user'         => [
+                    'id'       => $user->id,
+                    'name'     => $user->name,
+                    'username' => $user->username,
+                    'role'     => $user->role ?? 'perawat',
+                ],
+            ], 200);
+        }
+
+        return response()->json(['success' => false, 'message' => 'Kredensial tidak valid.'], 401);
+    } catch (\Exception $e) {
+        Log::error("Login Token Critical Failure: " . $e->getMessage());
+        return response()->json(['success' => false, 'message' => 'Server authentication error.'], 500);
     }
-
-    return response()->json(['success' => false, 'message' => 'Kredensial tidak valid.'], 401);
 });
 
-// ── PROTECTED ROUTE GATEWAY (SANCTUM) ──
+// ── PROTECTED ROUTE GATEWAY (SANCTUM LAYER) ──
 Route::middleware('auth:sanctum')->group(function () {
 
     // ── AUDIT LOGS SECURITY ENGINE ──
@@ -112,17 +117,21 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── RADIOLOGY PACS MONITOR ──
     Route::get('/radiology/dashboard', function () {
-        return response()->json([
-            'stats' => [
-                'total_scans'      => DB::table('clinical_data')->where('source', 'radiologi')->count(),
-                'pending_analysis' => DB::table('clinical_data')->where('source', 'radiologi')->where('status', 'draft')->count(),
-                'ai_verified'      => DB::table('clinical_data')->where('source', 'radiologi')->where('status', 'verified')->count(),
-            ],
-            'recent_work' => [],
-        ], 200);
+        try {
+            return response()->json([
+                'stats' => [
+                    'total_scans'      => DB::table('clinical_data')->whereNotNull('radiology_modality')->count(),
+                    'pending_analysis' => DB::table('clinical_data')->whereNotNull('radiology_modality')->whereNull('radiology_image')->count(),
+                    'ai_verified'      => DB::table('clinical_data')->whereNotNull('radiology_modality')->whereNotNull('radiology_image')->count(),
+                ],
+                'recent_work' => [],
+            ], 200);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     });
 
-    // ── CLINICAL DATA: LIST SEMUA ──
+    // ── CLINICAL DATA CORE OPERATIONS ──
     Route::get('/clinical-data', function () {
         try {
             $data = ClinicalData::orderBy('created_at', 'desc')->get();
@@ -132,7 +141,6 @@ Route::middleware('auth:sanctum')->group(function () {
         }
     });
 
-    // ── CLINICAL DATA: STORE BARU ──
     Route::post('/clinical-data', function (Request $request) {
         DB::beginTransaction();
         try {
@@ -180,7 +188,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/clinical-data/{norm}/radiology-order', [ClinicalDataController::class, 'storeRadiologyOrder']);
     Route::patch('/clinical-data/{norm}/verify', [ClinicalDataController::class, 'verify']);
 
-    // ── RAG GUIDELINE ──
+    // ── RAG CORE RETRIEVAL ENGINE ──
     Route::post('/rag-guideline', function (Request $request) {
         try {
             $patientId   = $request->input('patient_id');
@@ -214,7 +222,7 @@ Route::middleware('auth:sanctum')->group(function () {
         }
     });
 
-    // ── 🚀 FIX MUTLAK: ENDPOINT MASTER DATA TOTAL UNTUK NODE ADMIN LINTAS MINGGU ──
+    // ── MASTER DATA TOTAL LINTAS MINGGU ──
     Route::get('/patients-master', function () {
         try {
             $patients = DB::table('patients')->orderBy('updated_at', 'desc')->get();
@@ -224,17 +232,18 @@ Route::middleware('auth:sanctum')->group(function () {
         }
     });
 
-    // ── PATIENTS INTERACTIVE LIVE QUEUE NODE (DOKTER KUNCI HARI INI) ──
+    // ── 🚀 FIX COMPILER MULTI-ROLE REALTIME ANTREAN QUEUE ──
     Route::get('/patients-list', function () {
         try {
             $todayIso = date('Y-m-d');
 
-            // Narasi query riil Supabase mengecek created_at harian ATAU kolom date baru hasil mutasi
+            // Perbaikan Query Builder untuk mencegah masking token Sanctum
             $patients = DB::table('patients')
                 ->whereDate('created_at', $todayIso)
                 ->orWhere('date', $todayIso)
-                ->orderBy('updated_at', 'desc') // Urutkan berbasis detik perubahan teranyar
-                ->get();
+                ->orWhereNotNull('radiology_modality') 
+                ->orderBy('updated_at', 'desc')
+                ->get(); // Diikat langsung ke akhir rantai eksekusi
 
             $mappedPatients = $patients->map(function($p) use ($todayIso) {
                 $pData = (array) $p;
@@ -273,13 +282,13 @@ Route::middleware('auth:sanctum')->group(function () {
         }
     });
 
-    // ── USERS CRUD ──
-    Route::get('/users',          [UserController::class, 'index']);
-    Route::post('/users',         [UserController::class, 'store']);
-    Route::put('/users/{id}',   [UserController::class, 'update']);
+    // ── PERSONIL USER CONTROL CRUD ──
+    Route::get('/users',         [UserController::class, 'index']);
+    Route::post('/users',        [UserController::class, 'store']);
+    Route::put('/users/{id}',    [UserController::class, 'update']);
     Route::delete('/users/{id}', [UserController::class, 'destroy']);
 
-    // ── KNOWLEDGE BASE ──
+    // ── MEMORI JANGKA PANJANG RAG INDEKS ──
     Route::get('/knowledge', function () {
         try {
             return response()->json(['success' => true, 'data' => DB::table('knowledge_bases')->orderBy('created_at', 'desc')->get()], 200);
@@ -297,15 +306,18 @@ Route::middleware('auth:sanctum')->group(function () {
                 $file->move('/tmp', $fileName);
             }
 
+            $currentTimeString = date('H:i:s'); 
+
             DB::table('knowledge_bases')->insert([
-                'title'       => $request->title ?? 'Dokumen Tanpa Judul',
-                'category'    => $request->category ?? 'General',
-                'file_path'   => '/tmp/' . $fileName,
-                'version'     => $request->version ?? '1.0',
-                'description' => 'Diunggah via Cloud Node',
-                'status'      => 'ready',
-                'created_at'  => now(),
-                'updated_at'  => now(),
+                'title'        => $request->title ?? 'Dokumen Tanpa Judul',
+                'category'     => $request->category ?? 'General',
+                'file_path'    => '/tmp/' . $fileName,
+                'version'      => $request->version ?? '1.0',
+                'description'  => $request->description ?? 'Kompilasi Vektor SOP Terintegrasi',
+                'status'       => 'ready',
+                'created_time' => $currentTimeString, 
+                'created_at'   => now(),
+                'updated_at'   => now(),
             ]);
 
             if (Auth::check()) {
@@ -313,7 +325,7 @@ Route::middleware('auth:sanctum')->group(function () {
                 DB::table('audit_logs')->insert([
                     'user_id'     => $user->id,
                     'action'      => 'KNOWLEDGE INJECT',
-                    'description' => "Admin {$user->name} inject Vector DB: {$fileName}",
+                    'description' => "Admin {$user->name} inject Vector DB: {$fileName} pada jam {$currentTimeString}",
                     'created_at'  => now(),
                     'updated_at'  => now(),
                 ]);
@@ -335,11 +347,11 @@ Route::middleware('auth:sanctum')->group(function () {
         }
     });
 
-    // ── HIERARKI DUAL-ENGINE INTERCEPTOR ENDPOINT ──
-    Route::post('/agents/openclaw/chat',    [ClinicalDataController::class, 'triggerOpenClaw']);
+    // ── PIPELINE MULTI-AGENT GROUND ROUTING ──
+    Route::post('/agents/openclaw/chat',     [ClinicalDataController::class, 'triggerOpenClaw']);
     Route::post('/agents/voltagent/analyze', [ClinicalDataController::class, 'triggerVoltagent']);
 
 });
 
-// ── AGENT SANDBOX (public) ──
+// ── PUBLIC SESSION AGENT SANDBOX ──
 Route::post('/agent-sandbox', [ClinicalDataController::class, 'sandboxExecute']);
