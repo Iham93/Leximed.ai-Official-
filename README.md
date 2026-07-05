@@ -16,15 +16,12 @@
 ## 👥 Tim Pengembang & Struktur Otoritas
 
 * **Institusi:** D3 Teknik Informatika — PSDKU Sekolah Vokasi, Universitas Sebelas Maret (UNS) Madiun  
-* **Kategori Lomba:** *Web Technology Competition* (OLIVIA XI 2026)
 
 ### 👨‍💻 Susunan Anggota Tim
 
 | Nama Lengkap | NIM | Peran / Hak Akses Teknis |
 | :--- | :--- | :--- |
-| **Muhammad Akyas Febryansah** | V3925029 | Ketua Tim / Business Analyst & Manajemen Lead |
 | **Ilham Eka Saputra** | V3924005 | Anggota / Full-Stack Developer & AI Integration Lead |
-| **Aisyah Nurul Ilmi Prianto** | V3925018 | Anggota / Nurse Care System Workflow Lead |
 
 * **Dosen Pembimbing:** Darmawan Lahru, S.Kom., M.MT  
 * **NIP:** 1991091420200801
